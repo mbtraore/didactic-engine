@@ -53,7 +53,7 @@ ingress:
   # nginx.ingress.kubernetes.io/rewrite-target: /
   annotations: {}
   host: ""
-  tls: true
+  tls: false
   existingSecret: ""
 persistence:
   enabled: true

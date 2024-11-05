@@ -151,7 +151,63 @@
                 }
             }
         },
-
+        "init": {
+            "description": "Init parameters",
+            "type": "object",
+            "x-onyxia": {
+                "overwriteSchemaWith": "ide/init.json"
+            },
+            "properties": {
+                "regionInit": {
+                    "type": "string",
+                    "description": "region initialization script",
+                    "default": "",
+                    "x-onyxia": {
+                        "hidden": true,
+                        "overwriteDefaultWith": "{{k8s.initScriptUrl}}"
+                    }
+                },
+                "personalInit": {
+                    "type": "string",
+                    "description": "user initialization script",
+                    "default": ""
+                },
+                "personalInitArgs": {
+                    "type": "string",
+                    "description": "args for user initialization script",
+                    "default": ""
+                }
+            }
+        },
+        "kubernetes": {
+            "description": "configuration of your kubernetes access",
+            "type": "object",
+            "x-onyxia": {
+                "overwriteSchemaWith": "ide/role.json"
+            },
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "description": "allow your service to access your namespace ressources",
+                    "default": true
+                },
+                "role": {
+                    "type": "string",
+                    "description": "bind your service account to this kubernetes default role",
+                    "default": "view",
+                    "hidden": {
+                        "value": false,
+                        "path": "kubernetes/enabled"
+                    },
+                    "listEnum": [
+                        "view",
+                        "edit",
+                        "admin"
+                    ],
+                    "render": "list"
+                }
+            }
+        },
         "vault": {
             "description": "Configuration of vault client",
             "type": "object",
@@ -375,7 +431,78 @@
                 }
             }
         },
-
+        "networking": {
+            "type": "object",
+            "form": true,
+            "title": "Networking detail",
+            "properties": {
+                "user": {
+                    "type": "object",
+                    "description": "user defined port",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "title": "Enable a custom service port",
+                            "description": "Enable a custom service port",
+                            "default": false
+                        },
+                        "port": {
+                            "type": "integer",
+                            "description": "port of the custom service",
+                            "title": "Custom service port",
+                            "hidden": {
+                                "value": false,
+                                "path": "networking/user/enabled"
+                            },
+                            "default": 5000
+                        }
+                    }
+                }
+            }
+        },
+        "security": {
+            "description": "security specific configuration",
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "description": "Password",
+                    "default": "changeme",
+                    "render": "password",
+                    "x-onyxia": {
+                        "overwriteDefaultWith": "{{service.oneTimePassword}}",
+                        "overwriteSchemaWith": "ide/password"
+                    }
+                },
+                "networkPolicy": {
+                    "type": "object",
+                    "description": "Define access policy to the service",
+                    "x-onyxia": {
+                        "overwriteSchemaWith": "network-policy.json"
+                    },
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "title": "Enable network policy",
+                            "description": "Only pod from the same namespace will be allowed",
+                            "default": false,
+                            "x-onyxia": {
+                                "overwriteDefaultWith": "region.defaultNetworkPolicy"
+                            }
+                        },
+                        "from": {
+                            "type": "array",
+                            "description": "Array of source allowed to have network access to your service",
+                            "default": [],
+                            "x-onyxia": {
+                                "hidden": true,
+                                "overwriteDefaultWith": "region.from"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "nodeSelector": {
             "type": "object",
             "description": "NodeSelector",
@@ -403,15 +530,215 @@
                 "host": {
                     "type": "string",
                     "form": true,
-                    "title": "Host",
+                    "title": "host",
                     "x-onyxia": {
                         "hidden": true,
                         "overwriteDefaultWith": "{{project.id}}-{{k8s.randomSubdomain}}-0.{{k8s.domain}}"
                     }
+                },
+                "userhost": {
+                    "type": "string",
+                    "form": true,
+                    "title": "host",
+                    "x-onyxia": {
+                        "hidden": true,
+                        "overwriteDefaultWith": "{{project.id}}-{{k8s.randomSubdomain}}-user.{{k8s.domain}}"
+                    }
+                },
+                "class": {
+                    "type": "string",
+                    "form": true,
+                    "title": "class",
+                    "default": "",
+                    "x-onyxia": {
+                        "hidden": true,
+                        "overwriteDefaultWith": "{{k8s.class}}"
+                    }
+                },
+                "useCertManager": {
+                    "type": "boolean",
+                    "description": "Whether CertManager should be used to generate a certificate",
+                    "default": false,
+                    "x-onyxia": {
+                        "hidden": true,
+                        "overwriteDefaultWith": "k8s.useCertManager"
+                    }
+                },
+                "certManagerClusterIssuer": {
+                    "type": "string",
+                    "description": "certManager cluster issuer",
+                    "title": "CertManager Cluster Issuer",
+                    "default": "",
+                    "x-onyxia": {
+                        "hidden": true,
+                        "overwriteDefaultWith": "k8s.certManagerClusterIssuer"
+                    }
                 }
             }
         },
-
+        "route": {
+            "type": "object",
+            "form": true,
+            "title": "Route details",
+            "properties": {
+                "enabled": {
+                    "description": "Enable route",
+                    "type": "boolean",
+                    "default": false,
+                    "x-onyxia": {
+                        "hidden": true,
+                        "overwriteDefaultWith": "k8s.route"
+                    }
+                },
+                "host": {
+                    "type": "string",
+                    "form": true,
+                    "title": "host",
+                    "x-onyxia": {
+                        "hidden": true,
+                        "overwriteDefaultWith": "{{project.id}}-{{k8s.randomSubdomain}}-0.{{k8s.domain}}"
+                    }
+                },
+                "userhost": {
+                    "type": "string",
+                    "form": true,
+                    "title": "host",
+                    "x-onyxia": {
+                        "hidden": true,
+                        "overwriteDefaultWith": "{{project.id}}-{{k8s.randomSubdomain}}-user.{{k8s.domain}}"
+                    }
+                }
+            }
+        },
+        "repository": {
+            "description": "r repository (eg : cran mirrors or proxy caches)",
+            "type": "object",
+            "properties": {
+                "rRepository": {
+                    "type": "string",
+                    "description": "r repository",
+                    "default": "",
+                    "x-onyxia": {
+                        "hidden": true,
+                        "overwriteDefaultWith": "{{packageRepositoryInjection.cranProxyUrl}}"
+                    }
+                },
+                "packageManagerUrl": {
+                    "type": "string",
+                    "description": "Posit Package Manager URL",
+                    "default": "",
+                    "x-onyxia": {
+                        "hidden": true,
+                        "overwriteDefaultWith": "{{packageRepositoryInjection.packageManagerUrl}}"
+                    }
+                }
+            }
+        },
+        "startupProbe": {
+            "type": "object",
+            "description": "Startup probe",
+            "default": {
+                "failureThreshold": 60,
+                "initialDelaySeconds": 10,
+                "periodSeconds": 10,
+                "successThreshold": 1,
+                "timeoutSeconds": 2
+            },
+            "x-onyxia": {
+                "hidden": true,
+                "overwriteDefaultWith": "region.startupProbe",
+                "overwriteSchemaWith": "ide/startupProbe.json"
+            }
+        },
+        "tolerations": {
+            "type": "array",
+            "description": "Array of tolerations",
+            "default": [],
+            "x-onyxia": {
+                "hidden": true,
+                "overwriteDefaultWith": "region.tolerations",
+                "overwriteSchemaWith": "tolerations.json"
+            }
+        },
+        "userPreferences": {
+            "description": "User Preferences",
+            "type": "object",
+            "properties": {
+                "darkMode": {
+                    "type": "boolean",
+                    "description": "dark mode is or is not enabled",
+                    "default": false,
+                    "x-onyxia": {
+                        "hidden": true,
+                        "overwriteDefaultWith": "user.darkMode"
+                    }
+                },
+                "language": {
+                    "type": "string",
+                    "description": "Preferred language",
+                    "default": "en",
+                    "x-onyxia": {
+                        "hidden": true,
+                        "overwriteDefaultWith": "user.lang"
+                    }
+                }
+            }
+        },
+        "global": {
+            "description": "Suspend",
+            "type": "object",
+            "properties": {
+                "suspend": {
+                    "type": "boolean",
+                    "description": "Suspend this service",
+                    "default": false,
+                    "x-onyxia": {
+                        "hidden": true
+                    }
+                }
+            }
+        },
+        "proxy": {
+            "description": "It can be used to inject proxy settings in the services",
+            "type": "object",
+            "x-onyxia": {
+                "overwriteSchemaWith": "proxy.json"
+            },
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Inject proxy settings",
+                    "default": false
+                },
+                "httpProxy": {
+                    "type": "string",
+                    "description": "URL of the enterprise proxy for the region for HTTP.",
+                    "default": "",
+                    "hidden": {
+                        "value": false,
+                        "path": "proxy/enabled"
+                    }
+                },
+                "httpsProxy": {
+                    "type": "string",
+                    "description": "URL of the enterprise proxy for the region for HTTPS.",
+                    "default": "",
+                    "hidden": {
+                        "value": false,
+                        "path": "proxy/enabled"
+                    }
+                },
+                "noProxy": {
+                    "type": "string",
+                    "description": "enterprise local domain that should not take proxy comma separated",
+                    "default": "",
+                    "hidden": {
+                        "value": false,
+                        "path": "proxy/enabled"
+                    }
+                }
+            }
+        },
         "message": {
             "type": "object",
             "description": "Warning message",
